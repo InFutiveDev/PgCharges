@@ -18,7 +18,7 @@ const Header: React.FC = () => {
           
           <div className="hidden sm:block">
             <span className="text-lg text-white/90">
-              Calculate final settlement amounts for online payments
+              Get instant fee estimates with our easy PG calculator
             </span>
           </div>
         </div>
