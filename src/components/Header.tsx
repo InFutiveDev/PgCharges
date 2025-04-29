@@ -3,7 +3,7 @@ import { IndianRupee } from 'lucide-react';
 
 const Header: React.FC = () => {
   return (
-    <header className="bg-gradient-to-r from-[#3b83f6] to-[#0fb981] shadow-sm">
+    <header className="bg-gradient-to-r from-[#2b4be3] to-[#1c36b2] shadow-sm">
       <div className="container mx-auto px-4 py-4 sm:py-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">

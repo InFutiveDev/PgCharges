@@ -14,13 +14,15 @@ const Calculator: React.FC = () => {
   const [useInstantSettlement, setUseInstantSettlement] = useState<boolean>(false);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodInfo[]>(PAYMENT_METHODS);
   const [calculation, setCalculation] = useState<Calculation | null>(null);
+  const [customSettlementRate, setCustomSettlementRate] = useState<number>(DEFAULT_INSTANT_SETTLEMENT_RATE);
 
   // Parse amount
   const amountValue = parseFloat(amount) || 0;
 
   // Calculate total distribution
-  const totalDistribution = paymentMethods.reduce((sum, method) => 
-    sum + (method.selected && method.distribution ? method.distribution : 0), 0
+  const totalDistribution = paymentMethods.reduce(
+    (sum, method) => sum + (method.selected && method.distribution ? method.distribution : 0),
+    0
   );
 
   // Calculate charges whenever inputs change
@@ -30,24 +32,19 @@ const Calculator: React.FC = () => {
       return;
     }
 
-    const selectedMethods = paymentMethods.filter(method => method.selected);
-    
+    const selectedMethods = paymentMethods.filter((method) => method.selected);
+
     if (selectedMethods.length === 0) {
       setCalculation(null);
       return;
     }
 
-    const results = selectedMethods.map(method => {
-      const methodAmount = method.distribution 
-        ? amountValue * method.distribution 
+    const results = selectedMethods.map((method) => {
+      const methodAmount = method.distribution
+        ? amountValue * method.distribution
         : amountValue / selectedMethods.length;
 
-      return calculateCharges(
-        methodAmount,
-        method,
-        useInstantSettlement,
-        DEFAULT_INSTANT_SETTLEMENT_RATE
-      );
+      return calculateCharges(methodAmount, method, useInstantSettlement, customSettlementRate);
     });
 
     const totalSummary = calculateTotal(results);
@@ -56,44 +53,43 @@ const Calculator: React.FC = () => {
       amount: amountValue,
       selectedMethods,
       useInstantSettlement,
-      instantSettlementRate: DEFAULT_INSTANT_SETTLEMENT_RATE,
+      instantSettlementRate: customSettlementRate,
       results,
       totalSummary,
-      mode
+      mode,
     });
-  }, [amountValue, paymentMethods, useInstantSettlement, mode]);
+  }, [amountValue, paymentMethods, useInstantSettlement, mode, customSettlementRate]);
 
   // Handle payment method selection
   const handleMethodSelect = (id: string, selected: boolean) => {
-    setPaymentMethods(prev => 
-      prev.map(method => 
-        method.id === id 
-          ? { ...method, selected, distribution: selected ? method.distribution : 0 } 
-          : method
+    setPaymentMethods((prev) =>
+      prev.map((method) =>
+        method.id === id ? { ...method, selected, distribution: selected ? method.distribution : 0 } : method
       )
     );
   };
 
   // Handle custom rate change
   const handleCustomRateChange = (id: string, rate: number) => {
-    setPaymentMethods(prev => 
-      prev.map(method => 
-        method.id === id 
-          ? { ...method, customRate: rate } 
-          : method
-      )
+    setPaymentMethods((prev) =>
+      prev.map((method) => (method.id === id ? { ...method, customRate: rate } : method))
     );
   };
 
   // Handle distribution change
   const handleDistributionChange = (id: string, distribution: number) => {
-    setPaymentMethods(prev => 
-      prev.map(method => 
-        method.id === id 
-          ? { ...method, distribution } 
-          : method
-      )
+    setPaymentMethods((prev) =>
+      prev.map((method) => (method.id === id ? { ...method, distribution } : method))
     );
+  };
+
+  // Handle settlement rate toggle
+  const handleSettlementRateToggle = (isDefault: boolean) => {
+    if (isDefault) {
+      setCustomSettlementRate(DEFAULT_INSTANT_SETTLEMENT_RATE);
+    } else {
+      setCustomSettlementRate(0); // Reset to allow custom input
+    }
   };
 
   return (
@@ -123,7 +119,7 @@ const Calculator: React.FC = () => {
                     }`}
                     onClick={() => setMode('singleTransaction')}
                   >
-                    Single Transaction
+                    Daily Volume
                   </button>
                   <button
                     className={`flex-1 py-2 px-3 sm:px-4 rounded-md transition-colors ${
@@ -173,7 +169,8 @@ const Calculator: React.FC = () => {
                 {totalDistribution > 1 && (
                   <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-md">
                     <p className="text-xs sm:text-sm text-red-600">
-                      Total distribution ({(totalDistribution * 100).toFixed(0)}%) exceeds 100%. Please adjust the distribution percentages.
+                      Total distribution ({(totalDistribution * 100).toFixed(0)}%) exceeds 100%. Please adjust the
+                      distribution percentages.
                     </p>
                   </div>
                 )}
@@ -201,8 +198,57 @@ const Calculator: React.FC = () => {
                   label="Instant Settlement"
                   isChecked={useInstantSettlement}
                   onChange={setUseInstantSettlement}
-                  description="Enable to add 0.25% extra charge for instant settlement"
+                  description="Enable to add 0.25% extra charge or add custom charge for instant settlement"
                 />
+
+                {/* Settlement Rate Options */}
+                {useInstantSettlement && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Settlement Rate Type</label>
+                    <div className="flex items-center space-x-4">
+                      <button
+                        className={`py-2 px-4 rounded-md text-sm ${
+                          customSettlementRate === DEFAULT_INSTANT_SETTLEMENT_RATE
+                            ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                            : 'bg-gray-100 text-gray-700 border border-gray-200'
+                        }`}
+                        onClick={() => handleSettlementRateToggle(true)}
+                      >
+                        Default Rate
+                      </button>
+                      <button
+                        className={`py-2 px-4 rounded-md text-sm ${
+                          customSettlementRate !== DEFAULT_INSTANT_SETTLEMENT_RATE
+                            ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                            : 'bg-gray-100 text-gray-700 border border-gray-200'
+                        }`}
+                        onClick={() => handleSettlementRateToggle(false)}
+                      >
+                        Custom Rate
+                      </button>
+                    </div>
+
+                    {/* Custom Settlement Rate Input */}
+                    {customSettlementRate !== DEFAULT_INSTANT_SETTLEMENT_RATE && (
+                      <div className="mt-4">
+                        <label htmlFor="custom-settlement-rate" className="block text-sm font-medium text-gray-700">
+                          Custom Settlement Rate (%)
+                        </label>
+                        <input
+                          type="number"
+                          id="custom-settlement-rate"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={customSettlementRate}
+                          onChange={(e) => setCustomSettlementRate(parseFloat(e.target.value) || 0)}
+                          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          placeholder="Enter custom settlement rate"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
