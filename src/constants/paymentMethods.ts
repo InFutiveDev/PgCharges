@@ -14,7 +14,7 @@ export const PAYMENT_METHODS: PaymentMethodInfo[] = [
     id: 'creditCard',
     name: 'Credit Card',
     defaultRate: 0.02, // 2.00%
-    selected: true,
+    selected: false,
   },
   {
     id: 'debitCard',

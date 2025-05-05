@@ -39,6 +39,17 @@ const Calculator: React.FC = () => {
       return;
     }
 
+    const totalDistributedAmount = selectedMethods.reduce(
+      (sum, method) => sum + (method.distribution ? amountValue * method.distribution : 0),
+      0
+    );
+
+    // Ensure the total distributed amount does not exceed the transaction amount
+    if (totalDistributedAmount > amountValue) {
+      alert('Total distributed amount exceeds the transaction amount. Please adjust the distribution percentages.');
+      return;
+    }
+
     const results = selectedMethods.map((method) => {
       const methodAmount = method.distribution
         ? amountValue * method.distribution
@@ -62,25 +73,54 @@ const Calculator: React.FC = () => {
 
   // Handle payment method selection
   const handleMethodSelect = (id: string, selected: boolean) => {
-    setPaymentMethods((prev) =>
-      prev.map((method) =>
+    setPaymentMethods((prev) => {
+      const totalDistribution = prev.reduce(
+        (sum, method) => sum + (method.selected && method.distribution ? method.distribution : 0),
+        0
+      );
+
+      // Prevent selecting additional methods if total distribution is 100%
+      if (selected && totalDistribution >= 1) {
+        alert('Total distribution is already 100%. Cannot select additional methods.');
+        return prev; // Do not update the state
+      }
+
+      const updatedMethods = prev.map((method) =>
         method.id === id ? { ...method, selected, distribution: selected ? method.distribution : 0 } : method
-      )
-    );
+      );
+      return [...updatedMethods]; // Return a new array to trigger re-render
+    });
   };
 
   // Handle custom rate change
   const handleCustomRateChange = (id: string, rate: number) => {
-    setPaymentMethods((prev) =>
-      prev.map((method) => (method.id === id ? { ...method, customRate: rate } : method))
-    );
+    setPaymentMethods((prev) => {
+      const updatedMethods = prev.map((method) =>
+        method.id === id ? { ...method, customRate: rate } : method
+      );
+      return [...updatedMethods]; // Return a new array to trigger re-render
+    });
   };
 
   // Handle distribution change
   const handleDistributionChange = (id: string, distribution: number) => {
-    setPaymentMethods((prev) =>
-      prev.map((method) => (method.id === id ? { ...method, distribution } : method))
-    );
+    setPaymentMethods((prev) => {
+      const currentTotal = prev.reduce(
+        (sum, method) => sum + (method.id === id ? 0 : method.distribution || 0),
+        0
+      );
+
+      // Ensure the total distribution does not exceed 100%
+      if (currentTotal + distribution > 1) {
+        alert('Total distribution exceeds 100%. Please adjust the distribution percentages.');
+        return prev; // Do not update the state
+      }
+
+      const updatedMethods = prev.map((method) =>
+        method.id === id ? { ...method, distribution } : method
+      );
+      return [...updatedMethods]; // Return a new array to trigger re-render
+    });
   };
 
   // Handle settlement rate toggle
@@ -178,14 +218,27 @@ const Calculator: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mt-2">
                   {paymentMethods.map((method) => (
                     <PaymentMethodCard
-                      key={method.id}
+                      key={method.id} // Ensure this is unique
                       method={method}
                       useCustomRates={useCustomRates}
                       onSelect={handleMethodSelect}
                       onCustomRateChange={handleCustomRateChange}
-                      onDistributionChange={handleDistributionChange}
+                      onDistributionChange={(id, distribution) => handleDistributionChange(id, distribution)}
                       totalDistribution={totalDistribution}
-                    />
+                    >
+                      <input
+                        id={`distribution-${method.id}`}
+                        type="number"
+                        min="0"
+                        max={Math.max(0, 100 - totalDistribution * 100)} // Prevent exceeding 100%
+                        step="1"
+                        value={method.distribution || 0}
+                        onChange={(e) => handleDistributionChange(method.id, parseFloat(e.target.value) / 100 || 0)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full border border-gray-300 rounded p-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                        disabled={!method.selected || totalDistribution >= 1} // Disable if not selected or total is 100%
+                      />
+                    </PaymentMethodCard>
                   ))}
                 </div>
               </div>
@@ -269,7 +322,7 @@ const Calculator: React.FC = () => {
                     No calculation results yet
                   </h3>
                   <p className="text-gray-500 text-xs sm:text-sm">
-                    Enter an amount and select at least one payment method to see the calculation
+                    Enter an amount and select payment methods to see the calculation
                   </p>
                 </div>
               )}
